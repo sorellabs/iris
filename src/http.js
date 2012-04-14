@@ -187,6 +187,7 @@ function request(uri, options) {
                                     active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
+
                                       success.test(status)?  promise.bind(response, status)
                                     : error.test(status)?    promise.fail(response, status)
                                     : /* otherwise */        promise.done([response, status]) }}}
