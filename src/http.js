@@ -64,8 +64,8 @@ var state_map = [ 'unsent'
                 , 'loading'
                 , 'completed' ]
 
-function string_p(subject) {
-  return class_of(subject) == '[object String]' }
+function object_p(subject) {
+  return class_of(subject) == '[object Object]' }
 
 function status_type(status) {
   var type = (status - 1).toString().charAt(0)
@@ -149,7 +149,7 @@ function request(uri, options) {
   setup_listeners()
 
   client.open(method, uri, true, options.username, options.password)
-  client.send( string_p(options.body)?  serialise(options.body)
+  client.send( object_p(options.body)?  serialise(options.body)
              : /* otherwise */          options.body )
 
   active.push(promise)
