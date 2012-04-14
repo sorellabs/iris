@@ -114,7 +114,7 @@ var PromiseP = Promise.derive({
                                                         , delay * 1000 )}
 
 , clear_timer: support_timeout_p?  function _clear_timer() {
-                                     this..timeout = 0
+                                     this.timeout = 0
                                      return this }
 
              : /* otherwise */     Promise.clear_timer
