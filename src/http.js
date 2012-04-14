@@ -73,6 +73,8 @@ function status_type(status) {
 
 
 //// -- Public interface ------------------------------------------------------
+var active = []
+
 var PromiseP = Promise.derive({
   init:
   function _init(client, uri, options) {
@@ -135,9 +137,8 @@ var PromiseP = Promise.derive({
 
 
 function request(uri, options) {
-  var client, promise, async, method
+  var client, promise, method
   options = options || {}
-  async   = options.async !== false
   method  = (options.method || 'GET').toUpperCase()
   uri     = build_uri(uri, options.query, options.body)
 
@@ -147,9 +148,11 @@ function request(uri, options) {
   setup_headers(options.headers || {})
   setup_listeners()
 
-  client.open(method, uri, async, options.username, options.password)
+  client.open(method, uri, true, options.username, options.password)
   client.send( string_p(options.body)?  serialise(options.body)
              : /* otherwise */          options.body )
+
+  active.push(promise)
 
   return promise
 
@@ -180,6 +183,7 @@ function request(uri, options) {
                                   promise.fire('state:' + state_map[state], response, status)
 
                                   if (state == 4) {
+                                    active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
                                     success.test(status)?  promise.bind(response, status)
@@ -196,6 +200,7 @@ function request_with_method(method) { return function(uri, options) {
 //// -- Exports ---------------------------------------------------------------
 module.exports = { PromiseP: PromiseP
                  , request:  request
+                 , active:   active
                  , get:      request_with_method('GET')
                  , post:     request_with_method('POST')
                  , put:      request_with_method('PUT')
