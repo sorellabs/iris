@@ -116,7 +116,8 @@ var PromiseP = Promise.derive({
                                                             this.abort()
                                                             this.flush('timeouted')
                                                                 .fail(Promise.TIMEOUTED) }.bind(this)
-                                                        , delay * 1000 )}
+                                                        , delay * 1000 )
+                                 return this }
 
 , clear_timer: support_timeout_p?  function _clear_timer() {
                                      this.timeout = 0
