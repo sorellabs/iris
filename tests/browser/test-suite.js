@@ -1582,6 +1582,248 @@ module.exports = { http:  require('./http')
                  , jsonp: require('./jsonp') }
 });
 
+require.define("/node_modules/iris/src/http.js", function (require, module, exports, __dirname, __filename) {
+/// http.js --- Deals with HTTP requests in the browser
+//
+// Copyright (c) 2012 Quildreen Motta
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation files
+// (the "Software"), to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge,
+// publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+/// Module iris.http
+
+//// -- Dependencies ----------------------------------------------------------
+var utils  = require('./utils')
+var cassie = require('cassie')
+
+
+//// -- Aliases ---------------------------------------------------------------
+var keys               = Object.keys
+var call               = Function.prototype.call
+var to_array           = call.bind([].slice)
+var class_of           = call.bind({}.toString)
+var serialise          = utils.serialise
+var build_query_string = utils.build_query_string
+var register           = cassie.register
+var Promise            = cassie.Promise
+
+
+//// -- Helpers ---------------------------------------------------------------
+var make_xhr = function() {
+                 return 'XMLHttpRequest' in this?
+                        /* W3C? */ function() {
+                                     return new XMLHttpRequest() }
+                        :
+                        /* IE? */  function() {
+                                     return new ActiveXObject('Microsoft.XMLHTTP') }}()
+
+var support_timeout_p = 'timeout' in make_xhr()
+
+var success = /2\d{2}/
+var error   = /[45]\d{2}/
+
+var statuses = [ 'information'
+               , 'success'
+               , 'redirected'
+               , 'client-error'
+               , 'server-error' ]
+
+var state_map = [ 'unsent'
+                , 'opened'
+                , 'headers-received'
+                , 'loading'
+                , 'completed' ]
+
+function object_p(subject) {
+  return class_of(subject) == '[object Object]' }
+
+function status_type(status) {
+  var type = status.toString().charAt(0) - 1
+  return statuses[type] }
+
+function serialise_for_type(mime, data) {
+  return mime == 'application/json'?  JSON.stringify(data)
+  :      /* otherwise */              serialise(data) }
+
+
+//// -- Public interface ------------------------------------------------------
+var active = []
+
+var PromiseP = Promise.derive({
+  init:
+  function _init(client, uri, options) {
+    Promise.init.call(this)
+    this.client  = client
+    this.uri     = uri
+    this.options = options
+
+    return this }
+
+, fire:
+  function _fire(event) {
+    var args, callbacks, i, len
+    args      = to_array(arguments, 1)
+    callbacks = this.callbacks[event] || []
+
+    for (i = 0, len = callbacks.length; i < len; ++i)
+      callbacks[i].apply(this, args)
+
+    return this }
+
+, forget:
+  function _forget() {
+    this.client.abort()
+    return this.flush('forgotten').fail('forgotten') }
+
+, timeout: support_timeout_p?  function _timeout(delay) {
+                                 this.timeout = delay * 1000
+                                 return this }
+
+         : /* otherwise */     function _timeout(delay) {
+                                 this.clear_timer()
+                                 this.timer = setTimeout( function() {
+                                                            this.flush('timeouted')
+                                                                .fail('timeouted')
+                                                            this.forget() }.bind(this)
+                                                        , delay * 1000 )
+                                 return this }
+
+, clear_timer: support_timeout_p?  function _clear_timer() {
+                                     this.timeout = 0
+                                     return this }
+
+             : /* otherwise */     Promise.clear_timer
+
+// Generalised HTTP statuses
+, information  : register('status:information')
+, success      : register('status:success')
+, redirected   : register('status:redirected')
+, client_error : register('status:client-error')
+, server_error : register('status:server-error')
+
+// Ready states
+, unsent           : register('state:unsent')
+, opened           : register('state:opened')
+, headers_received : register('state:headers-received')
+, loading          : register('state:loading')
+, completed        : register('state:completed')
+
+// General failure statuses
+, errored : register('errored')
+})
+
+
+
+function request(uri, options) {
+  var client, promise, method, serialise_body_p, mime
+  options          = options         || {}
+  options.headers  = options.headers || {}
+  method           = (options.method || 'GET').toUpperCase()
+  uri              = build_uri(uri, options.query, options.body)
+
+  options.headers['X-Requested-With'] = 'XMLHttpRequest'
+
+  serialise_body_p = object_p(options.body)
+  if (serialise_body_p) {
+    mime = options.headers['Content-Type'] || 'application/x-www-form-urlencoded'
+    options.body = serialise_for_type(mime, options.body)
+    options.headers['Content-Type'] = mime }
+
+  client  = make_xhr()
+  promise = PromiseP.make(client, uri, options)
+
+  setup_listeners()
+
+  setTimeout(function() {
+    client.open(method, uri, true, options.username, options.password)
+    setup_headers(options.headers || {})
+    client.send(options.body) })
+
+  active.push(promise)
+
+  return promise
+
+
+  function build_uri(uri, query, body) {
+    uri = build_query_string(uri, query)
+    return method == 'GET'?  build_query_string(uri, body)
+    :      /* otherwise */   uri }
+
+  function setup_headers(headers) {
+    keys(headers).forEach(function(key) {
+      client.setRequestHeader(key, headers[key]) })}
+
+  function make_error_handler(type) { return function(ev) {
+    promise.flush(type).fail(type, ev) }}
+
+  function raise(type) {
+    make_error_handler(type)() }
+
+  function setup_listeners() {
+    client.onerror            = make_error_handler('errored')
+    client.onabort            = make_error_handler('forgotten')
+    client.ontimeout          = make_error_handler('timeouted')
+    client.onloadstart        = function(ev){ promise.fire('load:start', ev)    }
+    client.onprogress         = function(ev){ promise.fire('load:progress', ev) }
+    client.onloadend          = function(ev){ promise.fire('load:end', ev)      }
+    client.onload             = function(ev){ promise.fire('load:success', ev)  }
+    client.onreadystatechange = function(  ){
+                                  var response, status, state
+                                  state = client.readyState
+
+                                  promise.fire('state:' + state_map[state])
+
+                                  if (state == 4) {
+                                    response = client.responseText
+                                    status = client.status
+                                    active.splice(active.indexOf(promise), 1)
+                                    promise.flush('status:' + status)
+                                           .flush('status:' + status_type(status))
+
+                                      status == 0?           raise('errored')
+                                    : success.test(status)?  promise.bind(response, status)
+                                    : error.test(status)?    promise.fail(response, status)
+                                    : /* otherwise */        promise.done([response, status]) }}}
+}
+
+
+function request_with_method(method) { return function(uri, options) {
+  options = options || { }
+  options.method = method.toUpperCase()
+  return request(uri, options) }}
+
+
+//// -- Exports ---------------------------------------------------------------
+module.exports = { PromiseP: PromiseP
+                 , request:  request
+                 , active:   active
+                 , get:      request_with_method('GET')
+                 , post:     request_with_method('POST')
+                 , put:      request_with_method('PUT')
+                 , head:     request_with_method('HEAD')
+                 , delete_:  request_with_method('DELETE')
+                 , options:  request_with_method('OPTIONS')
+
+                 , internal: { make_xhr: make_xhr }}
+
+});
+
 require.define("/node_modules/iris/src/utils.js", function (require, module, exports, __dirname, __filename) {
 /// utils.js --- Utilities shared by all iris modules
 //
@@ -2087,352 +2329,6 @@ void function(root, exports) {
 )
 });
 
-require.define("/node_modules/iris/src/jsonp.js", function (require, module, exports, __dirname, __filename) {
-/// jsonp.js --- Abstracts over JSONP requests
-//
-// Copyright (c) 2012 Quildreen Motta
-//
-// Permission is hereby granted, free of charge, to any person
-// obtaining a copy of this software and associated documentation files
-// (the "Software"), to deal in the Software without restriction,
-// including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software,
-// and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-/// Module iris.jsonp
-
-//// -- Dependencies ----------------------------------------------------------
-var utils  = require('./utils')
-var cassie = require('cassie')
-
-
-//// -- Aliases ---------------------------------------------------------------
-var keys               = Object.keys
-var call               = Function.call
-var to_array           = call.bind([].slice)
-var build_query_string = utils.build_query_string
-var Promise            = cassie.Promise
-
-
-//// -- Helpers ---------------------------------------------------------------
-window.__iris_callbacks__ = { }
-var id_poll = []
-var request_id = 0
-
-var head = document.getElementsByTagName('head')[0]
-
-function get_callback() {
-  return id_poll.length?  'f' + id_poll.pop()
-  :      /* otherwise */  'f' + ++request_id }
-
-function noop() { }
-
-//// -- Public interface ------------------------------------------------------
-var active = []
-
-var PromiseP = Promise.derive({
-  init:
-  function _init(uri, callback, options) {
-    Promise.init.call(this)
-    this.uri      = uri
-    this.options  = options
-    this.callback = callback
-
-    return this }
-})
-
-function request(uri, options) {
-  options = options || {}
-  options.query = options.query || {}
-
-  var callback_field = options.query.callback || 'callback'
-  var callback = get_callback()
-  var script = document.createElement('script')
-  var promise = PromiseP.make(uri, callback, options)
-
-  active.push(promise)
-
-  __iris_callbacks__[callback] = promise.bind.bind(promise)
-  script.onerror = promise.fail.bind(promise)
-
-  promise.on('done', clean)
-
-  options.query[callback_field] = '__iris_callbacks__.' + callback
-  script.src = build_query_string(uri, options.query)
-  script.async = true
-
-  head.appendChild(script)
-
-  return promise
-
-  function clean() {
-    active.splice(active.indexOf(promise), 1)
-    id_poll.push(callback.slice(1))
-    __iris_callbacks__[callback] = noop
-    script.parentNode.removeChild(script) }
-}
-
-
-//// -- Exports ---------------------------------------------------------------
-module.exports = { PromiseP: PromiseP
-                 , request:  request
-                 , active:   active }
-});
-
-require.define("/node_modules/iris/src/http.js", function (require, module, exports, __dirname, __filename) {
-/// http.js --- Deals with HTTP requests in the browser
-//
-// Copyright (c) 2012 Quildreen Motta
-//
-// Permission is hereby granted, free of charge, to any person
-// obtaining a copy of this software and associated documentation files
-// (the "Software"), to deal in the Software without restriction,
-// including without limitation the rights to use, copy, modify, merge,
-// publish, distribute, sublicense, and/or sell copies of the Software,
-// and to permit persons to whom the Software is furnished to do so,
-// subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-/// Module iris.http
-
-//// -- Dependencies ----------------------------------------------------------
-var utils  = require('./utils')
-var cassie = require('cassie')
-
-
-//// -- Aliases ---------------------------------------------------------------
-var keys               = Object.keys
-var call               = Function.prototype.call
-var to_array           = call.bind([].slice)
-var class_of           = call.bind({}.toString)
-var serialise          = utils.serialise
-var build_query_string = utils.build_query_string
-var register           = cassie.register
-var Promise            = cassie.Promise
-
-
-//// -- Helpers ---------------------------------------------------------------
-var make_xhr = function() {
-                 return 'XMLHttpRequest' in this?
-                        /* W3C? */ function() {
-                                     return new XMLHttpRequest() }
-                        :
-                        /* IE? */  function() {
-                                     return new ActiveXObject('Microsoft.XMLHTTP') }}()
-
-var support_timeout_p = 'timeout' in make_xhr()
-
-var success = /2\d{2}/
-var error   = /[45]\d{2}/
-
-var statuses = [ 'information'
-               , 'success'
-               , 'redirected'
-               , 'client-error'
-               , 'server-error' ]
-
-var state_map = [ 'unsent'
-                , 'opened'
-                , 'headers-received'
-                , 'loading'
-                , 'completed' ]
-
-function object_p(subject) {
-  return class_of(subject) == '[object Object]' }
-
-function status_type(status) {
-  var type = status.toString().charAt(0) - 1
-  return statuses[type] }
-
-function serialise_for_type(mime, data) {
-  return mime == 'application/json'?  JSON.stringify(data)
-  :      /* otherwise */              serialise(data) }
-
-
-//// -- Public interface ------------------------------------------------------
-var active = []
-
-var PromiseP = Promise.derive({
-  init:
-  function _init(client, uri, options) {
-    Promise.init.call(this)
-    this.client  = client
-    this.uri     = uri
-    this.options = options
-
-    return this }
-
-, fire:
-  function _fire(event) {
-    var args, callbacks, i, len
-    args      = to_array(arguments, 1)
-    callbacks = this.callbacks[event] || []
-
-    for (i = 0, len = callbacks.length; i < len; ++i)
-      callbacks[i].apply(this, args)
-
-    return this }
-
-, forget:
-  function _forget() {
-    this.client.abort()
-    return this.flush('forgotten').fail('forgotten') }
-
-, timeout: support_timeout_p?  function _timeout(delay) {
-                                 this.timeout = delay * 1000
-                                 return this }
-
-         : /* otherwise */     function _timeout(delay) {
-                                 this.clear_timer()
-                                 this.timer = setTimeout( function() {
-                                                            this.flush('timeouted')
-                                                                .fail('timeouted')
-                                                            this.forget() }.bind(this)
-                                                        , delay * 1000 )
-                                 return this }
-
-, clear_timer: support_timeout_p?  function _clear_timer() {
-                                     this.timeout = 0
-                                     return this }
-
-             : /* otherwise */     Promise.clear_timer
-
-// Generalised HTTP statuses
-, information  : register('status:information')
-, success      : register('status:success')
-, redirected   : register('status:redirected')
-, client_error : register('status:client-error')
-, server_error : register('status:server-error')
-
-// Ready states
-, unsent           : register('state:unsent')
-, opened           : register('state:opened')
-, headers_received : register('state:headers-received')
-, loading          : register('state:loading')
-, completed        : register('state:completed')
-
-// General failure statuses
-, errored : register('errored')
-})
-
-
-
-function request(uri, options) {
-  var client, promise, method, serialise_body_p, mime
-  options          = options         || {}
-  options.headers  = options.headers || {}
-  method           = (options.method || 'GET').toUpperCase()
-  uri              = build_uri(uri, options.query, options.body)
-
-  options.headers['X-Requested-With'] = 'XMLHttpRequest'
-
-  serialise_body_p = object_p(options.body)
-  if (serialise_body_p) {
-    mime = options.headers['Content-Type'] || 'application/x-www-form-urlencoded'
-    options.body = serialise_for_type(mime, options.body)
-    options.headers['Content-Type'] = mime }
-
-  client  = make_xhr()
-  promise = PromiseP.make(client, uri, options)
-
-  setup_listeners()
-
-  setTimeout(function() {
-    client.open(method, uri, true, options.username, options.password)
-    setup_headers(options.headers || {})
-    client.send(options.body) })
-
-  active.push(promise)
-
-  return promise
-
-
-  function build_uri(uri, query, body) {
-    uri = build_query_string(uri, query)
-    return method == 'GET'?  build_query_string(uri, body)
-    :      /* otherwise */   uri }
-
-  function setup_headers(headers) {
-    keys(headers).forEach(function(key) {
-      client.setRequestHeader(key, headers[key]) })}
-
-  function make_error_handler(type) { return function(ev) {
-    promise.flush(type).fail(type, ev) }}
-
-  function raise(type) {
-    make_error_handler(type)() }
-
-  function setup_listeners() {
-    client.onerror            = make_error_handler('errored')
-    client.onabort            = make_error_handler('forgotten')
-    client.ontimeout          = make_error_handler('timeouted')
-    client.onloadstart        = function(ev){ promise.fire('load:start', ev)    }
-    client.onprogress         = function(ev){ promise.fire('load:progress', ev) }
-    client.onloadend          = function(ev){ promise.fire('load:end', ev)      }
-    client.onload             = function(ev){ promise.fire('load:success', ev)  }
-    client.onreadystatechange = function(  ){
-                                  var response, status, state
-                                  state = client.readyState
-
-                                  promise.fire('state:' + state_map[state])
-
-                                  if (state == 4) {
-                                    response = client.responseText
-                                    status = client.status
-                                    active.splice(active.indexOf(promise), 1)
-                                    promise.flush('status:' + status)
-                                           .flush('status:' + status_type(status))
-
-                                      status == 0?           raise('errored')
-                                    : success.test(status)?  promise.bind(response, status)
-                                    : error.test(status)?    promise.fail(response, status)
-                                    : /* otherwise */        promise.done([response, status]) }}}
-}
-
-
-function request_with_method(method) { return function(uri, options) {
-  options = options || { }
-  options.method = method.toUpperCase()
-  return request(uri, options) }}
-
-
-//// -- Exports ---------------------------------------------------------------
-module.exports = { PromiseP: PromiseP
-                 , request:  request
-                 , active:   active
-                 , get:      request_with_method('GET')
-                 , post:     request_with_method('POST')
-                 , put:      request_with_method('PUT')
-                 , head:     request_with_method('HEAD')
-                 , delete_:  request_with_method('DELETE')
-                 , options:  request_with_method('OPTIONS')
-
-                 , internal: { make_xhr: make_xhr }}
-
-});
-
 require.define("/http.js", function (require, module, exports, __dirname, __filename) {
 var expect = require('expect.js')
 
@@ -2598,7 +2494,7 @@ describe('{} http', function() {
               , next)
         })
       })
-      describe('Should execute all callbacks matching the exact HTTP response status.', function(next) {
+      describe('—— Should execute all callbacks matching the exact HTTP response status.', function(next) {
         it('- Success 2xx', function(next) {
           each( zipRange('success', 200, 206)
               , check_status(1)
@@ -2758,8 +2654,180 @@ describe('{} http', function() {
 })
 });
 
+require.define("/jsonp.js", function (require, module, exports, __dirname, __filename) {
+var expect = require('expect.js')
+
+describe('{} iris', function() {
+describe('{} jsonp', function() {
+  var jsonp    = require('iris').jsonp
+  var proto    = Object.getPrototypeOf
+  var ok       = false
+
+  function success() { ok = true  }
+  function failure() { ok = false }
+  function without_args(f){ return function() { return f() }}
+  function to_array(o) {
+    var r = []
+    for (var i = 0; i < o.length; ++i) r.push(o[i])
+    return r }
+
+  beforeEach(function() {
+    ok = false
+  })
+
+  describe('λ request', function() {
+    it('Should return a PromiseP object.', function(next) {
+      var p = jsonp.request('/jsonp/no-op').on('done', without_args(next))
+      expect(proto(p)).to.be(jsonp.PromiseP)
+    })
+    it('Should add the promise to the list of active requests.', function() {
+      var p = jsonp.request('/jsonp/no-op')
+      expect(jsonp.active).to.contain(p)
+    })
+    it('Should, when done, remove the promise from the list of active requests.', function(next) {
+      var p = jsonp.request('/jsonp/no-op')
+                   .on('done', function() { expect(jsonp.active).to.not.contain(p)
+                                            next() })
+    })
+    it('Should remove the script element from the document.', function(next) {
+      jsonp.request('/jsonp/special')
+           .on('done', function() { var scripts = to_array(document.scripts).filter(special_p)
+                                    expect(scripts).to.be.empty()
+                                    next() })
+
+      function special_p(s){ return /\/jsonp\/special$/.test(s.src) }
+    })
+    it('Should call the success callbacks if the server responds.', function(next) {
+      jsonp.request('/jsonp/no-op')
+           .ok(success).failed(failure)
+           .on('done', function(data){ expect(ok).to.be.ok()
+                                       expect(data).to.eql({ status: 200, statusText: 'OK' })
+                                       next() })
+    })
+    it('Should call the error callbacks if anything goes wrong.', function(next) {
+      jsonp.request('/jsonp/error')
+           .failed(success).ok(failure)
+           .on('done', function(){ expect(ok).to.be.ok()
+                                   next() })
+    })
+    it('Should cancel the request after the given timeout.', function(next) {
+      jsonp.request('/jsonp/looong')
+           .timeouted(success)
+           .ok(failure)
+           .timeout(0.1)
+           .on('done', function(){ expect(ok).to.be.ok()
+                                   next() })
+    })
+  })
+})
+})
+});
+
+require.define("/node_modules/iris/src/jsonp.js", function (require, module, exports, __dirname, __filename) {
+/// jsonp.js --- Abstracts over JSONP requests
+//
+// Copyright (c) 2012 Quildreen Motta
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation files
+// (the "Software"), to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge,
+// publish, distribute, sublicense, and/or sell copies of the Software,
+// and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+/// Module iris.jsonp
+
+//// -- Dependencies ----------------------------------------------------------
+var utils  = require('./utils')
+var cassie = require('cassie')
+
+
+//// -- Aliases ---------------------------------------------------------------
+var keys               = Object.keys
+var call               = Function.call
+var to_array           = call.bind([].slice)
+var build_query_string = utils.build_query_string
+var Promise            = cassie.Promise
+
+
+//// -- Helpers ---------------------------------------------------------------
+window.__iris_callbacks__ = { }
+var id_poll = []
+var request_id = 0
+
+var head = document.getElementsByTagName('head')[0]
+
+function get_callback() {
+  return id_poll.length?  'f' + id_poll.pop()
+  :      /* otherwise */  'f' + ++request_id }
+
+function noop() { }
+
+//// -- Public interface ------------------------------------------------------
+var active = []
+
+var PromiseP = Promise.derive({
+  init:
+  function _init(uri, callback, options) {
+    Promise.init.call(this)
+    this.uri      = uri
+    this.options  = options
+    this.callback = callback
+
+    return this }
+})
+
+function request(uri, options) {
+  options = options || {}
+  options.query = options.query || {}
+
+  var callback_field = options.query.callback || 'callback'
+  var callback = get_callback()
+  var script = document.createElement('script')
+  var promise = PromiseP.make(uri, callback, options)
+
+  active.push(promise)
+
+  __iris_callbacks__[callback] = promise.bind.bind(promise)
+  script.onerror = promise.fail.bind(promise)
+
+  promise.on('done', clean)
+
+  options.query[callback_field] = '__iris_callbacks__.' + callback
+  script.src = build_query_string(uri, options.query)
+  script.async = true
+
+  setTimeout(function() {  head.appendChild(script) })
+
+  return promise
+
+  function clean() {
+    active.splice(active.indexOf(promise), 1)
+    id_poll.push(callback.slice(1))
+    __iris_callbacks__[callback] = noop
+    script.parentNode.removeChild(script) }}
+
+
+//// -- Exports ---------------------------------------------------------------
+module.exports = { PromiseP: PromiseP
+                 , request:  request
+                 , active:   active }
+});
+
 require.define("/suite.js", function (require, module, exports, __dirname, __filename) {
     require('./http.js')
-
+require('./jsonp.js')
 });
 require("/suite.js");
