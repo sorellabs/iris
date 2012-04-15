@@ -104,7 +104,7 @@ var PromiseP = Promise.derive({
 , forget:
   function _forget() {
     this.client.abort()
-    return Promise.forget.call(this) }
+    return this.flush('aborted') }
 
 , timeout: support_timeout_p?  function _timeout(delay) {
                                  this.timeout = delay * 1000
@@ -115,7 +115,7 @@ var PromiseP = Promise.derive({
                                  this.timer = setTimeout( function() {
                                                             this.flush('timeouted')
                                                                 .fail('timeouted')
-                                                            this.client.abort() }.bind(this)
+                                                            this.forget() }.bind(this)
                                                         , delay * 1000 )
                                  return this }
 
@@ -185,14 +185,13 @@ function request(uri, options) {
     keys(headers).forEach(function(key) {
       client.setRequestHeader(key, headers[key]) })}
 
+  function make_error_handler(type) { return function(ev) {
+    promise.flush(type).fail(type, ev) }}
+
   function setup_listeners() {
-    client.onerror            = function(ev){ promise.flush('errored')
-                                                     .fail('errored', ev)       }
-    client.onabort            = function(ev){ promise.flush('aborted')
-                                                     .flush('forgotten')
-                                                     .fail('aborted', ev)       }
-    client.ontimeout          = function(ev){ promise.flush('timeouted')
-                                                     .fail('timeouted', ev)     }
+    client.onerror            = make_error_handler('errored')
+    client.onabort            = make_error_handler('aborted')
+    client.ontimeout          = make_error_handler('timeouted')
     client.onloadstart        = function(ev){ promise.fire('load:start', ev)    }
     client.onprogress         = function(ev){ promise.fire('load:progress', ev) }
     client.onloadend          = function(ev){ promise.fire('load:end', ev)      }
@@ -205,7 +204,7 @@ function request(uri, options) {
                                   promise.fire('state:' + state_map[state], response, status)
 
                                   if (state == 4) {
-                                    status   = client.status
+                                    status = client.status
                                     active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
@@ -213,7 +212,7 @@ function request(uri, options) {
                                       success.test(status)?  promise.bind(response, status)
                                     : error.test(status)?    promise.fail(response, status)
                                     : status != 0?           promise.done([response, status])
-                                    : /* otherwise */        client.onerror() }}}
+                                    : /* otherwise */        make_error_handler('errored')() }}}
 }
 
 
