@@ -24,6 +24,8 @@ app.get('/headers', function(req, res) {
 })
 
 app.get('/status/:id', function(req, res) {
+  if (req.params.id == 303)
+    res.header('Location', '/status/302')
   res.send('', {}, +req.params.id)
 })
 
