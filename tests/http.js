@@ -6,12 +6,9 @@ describe('{} http', function() {
   var proto = Object.getPrototypeOf
   var ok    = false
 
-  var statuses = zipRange('success',      200, 206).concat(
-                   zipRange('redirected',   300, 307).concat(
-                     zipRange('client-error', 400, 417).concat(
-                       zipRange('server-error', 500, 505))))
 
   function without_args(f){ return function() { return f() }}
+
 
   function each(xs, f, done) {
     var i = 0
@@ -21,9 +18,11 @@ describe('{} http', function() {
       if (i < xs.length) f(xs[i++], step)
       else               done() }}
 
+
   function zipRange(pre, start, end) {
     var xs = range(start, end)
     return xs.map(function(x){ return [pre, x] })}
+
 
   function range(start, end) {
     var xs = []
@@ -31,8 +30,10 @@ describe('{} http', function() {
     while (++start <= end) xs.push(start)
     return xs }
 
+
   function success() { ok = true }
   function failure() { ok = false }
+
 
   function http_done(p, step) { return function() {
     if (!step) step = p, p = null
@@ -40,7 +41,17 @@ describe('{} http', function() {
       console.log(p.client.status, 'Request failed', p)
     else
       expect(ok).to.be(true)
+    ok = false
     step() }}
+
+
+  function check_status(idx) { return function(item, step) {
+    var type   = item[0]
+    var status = item[1]
+    var event  = item[idx]
+    var p = http.get('/status/' + status)
+    p.on('status:' + event, success)
+     .on('done',            http_done(p, step)) }}
 
   beforeEach(function() {
     ok = false
@@ -121,25 +132,49 @@ describe('{} http', function() {
 
 
     describe('—— Responses ————————————————', function() {
-      it('Should execute all callbacks matching the generic HTTP status type.', function(next) {
-        each( statuses
-            , function(item, step) {
-                var type   = item[0]
-                var status = item[1]
-                var p = http.get('/status/' + status)
-                p.on('status:' + type, success)
-                 .on('done',           http_done(p, step)) }
-            , next)
+      describe('—— Should execute all callbacks matching the generic HTTP status type.', function(next) {
+        it('- Success 2xx', function(next) {
+          each( zipRange('success', 200, 206)
+              , check_status(0)
+              , next )
+        })
+        it('- Redirected 3xx', function(next) {
+          each( zipRange('redirected', 300, 307)
+              , check_status(0)
+              , next )
+        })
+        it('- Client Error 4xx', function(next) {
+          each( zipRange('client-error', 400, 417)
+              , check_status(0)
+              , next)
+        })
+        it('- Server Error 5xx', function(next) {
+          each( zipRange('server-error', 500, 505)
+              , check_status(0)
+              , next)
+        })
       })
-      it('Should execute all callbacks matching the exact HTTP response status.', function(next) {
-        each( statuses
-            , function(item, step) {
-                var type   = item[0]
-                var status = item[1]
-                var p = http.get('/status/' + status)
-                p.on('status:' + status, success)
-                 .on('done',             http_done(p, step)) }
-            , next)
+      describe('Should execute all callbacks matching the exact HTTP response status.', function(next) {
+        it('- Success 2xx', function(next) {
+          each( zipRange('success', 200, 206)
+              , check_status(1)
+              , next )
+        })
+        it('- Redirected 3xx', function(next) {
+          each( zipRange('redirected', 300, 307)
+              , check_status(1)
+              , next )
+        })
+        it('- Client Error 4xx', function(next) {
+          each( zipRange('client-error', 400, 417)
+              , check_status(1)
+              , next)
+        })
+        it('- Server Error 5xx', function(next) {
+          each( zipRange('server-error', 500, 505)
+              , check_status(1)
+              , next)
+        })
       })
       it('Should execute the success callbacks in case of a 2xx.', function(next) {
         each( range(200, 206)
@@ -193,10 +228,11 @@ describe('{} http', function() {
                                   next() })
 
         var states = []
-        p.client.addEventListener('readystatechange', function(ev) {
-                                                        var state = p.client.readyState
-                                                        console.log('Entered ' + state)
-                                                        states.push(state) })
+        var old    = p.client.onreadystatechange
+        p.client.onreadystatechange = function(ev) {
+          var state = p.client.readyState
+          states.push(state)
+          old.apply(this, arguments) }
       })
       it('Should execute all forget callbacks when the request is aborted.', function(next) {
         var n = 0
@@ -246,7 +282,10 @@ describe('{} http', function() {
         var p = http.get('/no-op')
                     .on('load:start', success)
                     .on('done',       http_done(next))
-        p.client.addEventListener('loadstart', function(){ expect(ok).to.be(true) })
+        var old = p.client.onloadstart
+        p.client.onloadstart = function(ev) {
+          old.apply(this, arguments)
+          expect(ok).to.be(true) }
       })
       it('Should execute the `load:progress\' callbacks anytime we receive new chunks.', function(next) {
         this.timeout(4000)
@@ -261,15 +300,21 @@ describe('{} http', function() {
         ok = 1
         var p = http.get('/no-op')
                     .on('load:end', success)
-        p.client.addEventListener('loadend', function(){ expect(ok).to.be(true)
-                                                         next() })
+        var old = p.client.onloadend
+        p.client.onloadend = function(ev) {
+          old.apply(this, arguments)
+          expect(ok).to.be(true)
+          next() }
       })
       it('Should execute the `load:success\' callbacks when we fully receive the request.', function(next) {
         ok = 1
         var p = http.get('/no-op')
                     .on('load:success', success)
-        p.client.addEventListener('load', function(){ expect(ok).to.be(true)
-                                                      next() })
+        var old = p.client.onload
+        p.client.onload = function(ev) {
+          old.apply(this, arguments)
+          expect(ok).to.be(true)
+          next() }
       })
     })
   })
