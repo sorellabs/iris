@@ -7,6 +7,14 @@ describe('{} http', function() {
   var ok    = false
 
 
+  function add_event(o, ev, f) {
+    ev = ev.toLowerCase()
+    'addEventListener' in o?  o.addEventListener(ev, f)
+    : /* otherwise */         void function() { var old = o['on' + ev]
+                                                o['on' + ev] = function() {
+                                                                 old.apply(this, arguments)
+                                                                 f.apply(this, arguments) }}()}
+
   function without_args(f){ return function() { return f() }}
 
 
@@ -64,7 +72,7 @@ describe('{} http', function() {
         expect(proto(p)).to.be(http.PromiseP)
       })
       it('Should add the promise to the list of active requests.', function(next) {
-        var p = http.request('/no-op').headers_received(function(){
+        var p = http.request('/no-op').completed(function(){
           expect(http.active).to.contain(p)
           p.forget()
           next()
@@ -74,8 +82,8 @@ describe('{} http', function() {
 
       it('Should, when done, remove the promise from the list of active requests.', function(next) {
         var p = http.request('/no-op').ok(function() {
-                                            expect(http.active).to.not.contain(p) })
-                                      .on('done', without_args(next))
+                                            expect(http.active).to.not.contain(p)
+                                            next() })
       })
     })
 
@@ -228,11 +236,9 @@ describe('{} http', function() {
                                   next() })
 
         var states = []
-        var old    = p.client.onreadystatechange
-        p.client.onreadystatechange = function(ev) {
+        add_event(p.client, 'readystatechange', function(ev) {
           var state = p.client.readyState
-          states.push(state)
-          old.apply(this, arguments) }
+          states.push(state) })
       })
       it('Should execute all forget callbacks when the request is aborted.', function(next) {
         var n = 0
@@ -245,7 +251,7 @@ describe('{} http', function() {
       })
       it('Should set the promise\'s value to `forgotten\' when aborted.', function(next) {
         var p = http.get('/response')
-                    .on('done', function(err) { console.log('done'); expect(err).to.be('forgotten')
+                    .on('done', function(err) { expect(err).to.be('forgotten')
                                                 next() })
         p.forget()
       })
@@ -282,10 +288,8 @@ describe('{} http', function() {
         var p = http.get('/no-op')
                     .on('load:start', success)
                     .on('done',       http_done(next))
-        var old = p.client.onloadstart
-        p.client.onloadstart = function(ev) {
-          old.apply(this, arguments)
-          expect(ok).to.be(true) }
+        add_event(p.client, 'loadstart', function(ev) {
+          expect(ok).to.be(true) })
       })
       it('Should execute the `load:progress\' callbacks anytime we receive new chunks.', function(next) {
         this.timeout(4000)
@@ -300,21 +304,17 @@ describe('{} http', function() {
         ok = 1
         var p = http.get('/no-op')
                     .on('load:end', success)
-        var old = p.client.onloadend
-        p.client.onloadend = function(ev) {
-          old.apply(this, arguments)
+        add_event(p.client, 'loadend', function(ev) {
           expect(ok).to.be(true)
-          next() }
+          next() })
       })
       it('Should execute the `load:success\' callbacks when we fully receive the request.', function(next) {
         ok = 1
         var p = http.get('/no-op')
                     .on('load:success', success)
-        var old = p.client.onload
-        p.client.onload = function(ev) {
-          old.apply(this, arguments)
+        add_event(p.client, 'load', function(ev) {
           expect(ok).to.be(true)
-          next() }
+          next() })
       })
     })
   })
