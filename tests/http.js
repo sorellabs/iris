@@ -162,7 +162,7 @@ describe('{} http', function() {
               , next)
         })
       })
-      describe('Should execute all callbacks matching the exact HTTP response status.', function(next) {
+      describe('—— Should execute all callbacks matching the exact HTTP response status.', function(next) {
         it('- Success 2xx', function(next) {
           each( zipRange('success', 200, 206)
               , check_status(1)
