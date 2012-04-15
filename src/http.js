@@ -212,7 +212,8 @@ function request(uri, options) {
 
                                       success.test(status)?  promise.bind(response, status)
                                     : error.test(status)?    promise.fail(response, status)
-                                    : /* otherwise */        promise.done([response, status]) }}}
+                                    : status != 0?           promise.done([response, status])
+                                    : /* otherwise */        client.onerror() }}}
 }
 
 
