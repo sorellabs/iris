@@ -104,7 +104,7 @@ var PromiseP = Promise.derive({
 , forget:
   function _forget() {
     this.client.abort()
-    return this.flush('aborted').fail('aborted') }
+    return this.flush('forgotten').fail('forgotten') }
 
 , timeout: support_timeout_p?  function _timeout(delay) {
                                  this.timeout = delay * 1000
@@ -140,7 +140,6 @@ var PromiseP = Promise.derive({
 , completed        : register('state:completed')
 
 // General failure statuses
-, aborted : register('aborted')
 , errored : register('errored')
 })
 
@@ -193,7 +192,7 @@ function request(uri, options) {
 
   function setup_listeners() {
     client.onerror            = make_error_handler('errored')
-    client.onabort            = make_error_handler('aborted')
+    client.onabort            = make_error_handler('forgotten')
     client.ontimeout          = make_error_handler('timeouted')
     client.onloadstart        = function(ev){ promise.fire('load:start', ev)    }
     client.onprogress         = function(ev){ promise.fire('load:progress', ev) }
