@@ -2,3 +2,4 @@ syntax:glob
 ignore
 build
 
+node_modules
