@@ -149,9 +149,10 @@ function request(uri, options) {
   setup_headers(options.headers || {})
   setup_listeners()
 
-  client.open(method, uri, true, options.username, options.password)
-  client.send( object_p(options.body)?  serialise(options.body)
-             : /* otherwise */          options.body )
+  setTimeout(function() {
+    client.open(method, uri, true, options.username, options.password)
+    client.send( object_p(options.body)?  serialise(options.body)
+               : /* otherwise */          options.body )})
 
   active.push(promise)
 
