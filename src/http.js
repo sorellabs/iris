@@ -69,8 +69,12 @@ function object_p(subject) {
   return class_of(subject) == '[object Object]' }
 
 function status_type(status) {
-  var type = (status - 1).toString().charAt(0)
+  var type = status.toString().charAt(0) - 1
   return statuses[type] }
+
+function serialise_for_type(mime, data) {
+  return mime == 'application/json'?  JSON.stringify(data)
+  :      /* otherwise */              serialise(data) }
 
 
 //// -- Public interface ------------------------------------------------------
@@ -138,21 +142,29 @@ var PromiseP = Promise.derive({
 
 
 function request(uri, options) {
-  var client, promise, method
-  options = options || {}
-  method  = (options.method || 'GET').toUpperCase()
-  uri     = build_uri(uri, options.query, options.body)
+  var client, promise, method, serialise_body_p, mime
+  options          = options         || {}
+  options.headers  = options.headers || {}
+  method           = (options.method || 'GET').toUpperCase()
+  uri              = build_uri(uri, options.query, options.body)
+
+  options.headers['X-Requested-With'] = 'XMLHttpRequest'
+
+  serialise_body_p = object_p(options.body)
+  if (serialise_body_p) {
+    mime = options.headers['Content-Type'] || 'application/x-www-form-urlencoded'
+    options.body = serialise_for_type(mime, options.body)
+    options.headers['Content-Type'] = mime }
 
   client  = make_xhr()
   promise = PromiseP.make(client, uri, options)
 
-  setup_headers(options.headers || {})
   setup_listeners()
 
   setTimeout(function() {
     client.open(method, uri, true, options.username, options.password)
-    client.send( object_p(options.body)?  serialise(options.body)
-               : /* otherwise */          options.body )})
+    setup_headers(options.headers || {})
+    client.send(options.body) })
 
   active.push(promise)
 
