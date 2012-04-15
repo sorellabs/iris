@@ -186,9 +186,12 @@ function request(uri, options) {
       client.setRequestHeader(key, headers[key]) })}
 
   function setup_listeners() {
-    client.onerror            = function(ev){ promise.fail('errored', ev)       }
-    client.onabort            = function(ev){ promise.fail('aborted', ev)       }
-    client.ontimeout          = function(ev){ promise.fail('timeouted', ev)     }
+    client.onerror            = function(ev){ promise.flush('errored')
+                                                     .fail('errored', ev)       }
+    client.onabort            = function(ev){ promise.flush('aborted')
+                                                     .fail('aborted', ev)       }
+    client.ontimeout          = function(ev){ promise.flush('timeouted')
+                                                     .fail('timeouted', ev)     }
     client.onloadstart        = function(ev){ promise.fire('load:start', ev)    }
     client.onprogress         = function(ev){ promise.fire('load:progress', ev) }
     client.onloadend          = function(ev){ promise.fire('load:end', ev)      }
