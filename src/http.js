@@ -90,7 +90,7 @@ var PromiseP = Promise.derive({
   function _fire(event) {
     var args, callbacks, i, len
     args      = to_array(arguments, 1)
-    callbacks = this.listeners[event] || []
+    callbacks = this.callbacks[event] || []
 
     for (i = 0, len = callbacks.length; i < len; ++i)
       callbacks[i].apply(this, args)
