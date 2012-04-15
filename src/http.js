@@ -137,6 +137,10 @@ var PromiseP = Promise.derive({
 , headers_received : register('state:headers-received')
 , loading          : register('state:loading')
 , completed        : register('state:completed')
+
+// General failure statuses
+, aborted : register('aborted')
+, errored : register('errored')
 })
 
 
