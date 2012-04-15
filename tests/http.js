@@ -35,10 +35,11 @@ describe('{} http', function() {
   function failure() { ok = false }
 
   function http_done(p, step) { return function() {
-    if (p.client.status == 0)
+    if (!step) step = p, p = null
+    if (p && p.client.status == 0)
       console.log(p.client.status, 'Request failed', p)
     else
-      expect(ok).to.be.ok()
+      expect(ok).to.be(true)
     step() }}
 
   beforeEach(function() {
@@ -177,19 +178,99 @@ describe('{} http', function() {
     })
 
     describe('—— Events ——————————————————', function() {
-      it('Should execute all callbacks from state X when the request enters that state.')
-      it('Should execute all abort callbacks when the request is aborted.')
-      it('Should set the promise\'s value to `aborted\' when aborted.')
-      it('Should execute all timeout callbacks when the request times out.')
-      it('Should set the promise\'s value to `timeouted\' when timeouted.')
-      it('Should execute the `error\' callbacks if an error occurs with the request itself.')
+      it('Should execute all callbacks from state X when the request enters that state.', function(next) {
+        function check_state(n) { return function() {
+          states.splice(states.indexOf(n), 1) }}
+
+        var p = http.get('/response')
+                    .unsent(check_state(0))
+                    .opened(check_state(1))
+                    .headers_received(check_state(2))
+                    .loading(check_state(3))
+                    .completed(check_state(4))
+                    .on('done', function() {
+                                  expect(states).to.be.empty()
+                                  next() })
+
+        var states = []
+        p.client.addEventListener('readystatechange', function(ev) {
+                                                        var state = p.client.readyState
+                                                        console.log('Entered ' + state)
+                                                        states.push(state) })
+      })
+      it('Should execute all forget callbacks when the request is aborted.', function(next) {
+        var n = 0
+        http.get('/response')
+            .forgotten(function(){ ++n })
+            .then(function(){ ++n })
+            .on('done', function() { expect(n).to.be(2)
+                                     next() })
+            .forget()
+      })
+      it('Should set the promise\'s value to `forgotten\' when aborted.', function(next) {
+        var p = http.get('/response')
+                    .on('done', function(err) { console.log('done'); expect(err).to.be('forgotten')
+                                                next() })
+        p.forget()
+      })
+      it('Should execute all timeout callbacks when the request times out.', function(next) {
+        var n = 0
+        http.get('/looong')
+            .timeouted(function() { ++n })
+            .then(function() { ++n })
+            .on('done', function() { expect(n).to.be(2)
+                                     next() })
+            .timeout(0.1)
+      })
+      it('Should set the promise\'s value to `timeouted\' when timeouted.', function(next) {
+        var n = 0
+        var p = http.get('/looong')
+                    .on('done', function(err) { expect(err).to.be('timeouted')
+                                                next() })
+                    .timeout(0.1)
+      })
+      it('Should execute the `error\' callbacks if an error occurs with the request itself.', function(next) {
+        var n = 0
+        var p = http.get('/cross-redirect')
+                    .errored(function(){ ++n })
+                    .then(function(){ ++n })
+                    .on('load:end', function(){ expect(p.value).to.contain('errored')
+                                                expect(n).to.be(2)
+                                                next() })
+      })
     })
 
     describe('—— XHR2 Events ———————————————', function() {
-      it('Should execute the `load:start\' callbacks when loading starts.')
-      it('Should execute the `load:progress\' callbacks anytime we receive new chunks.')
-      it('Should execute the `load:end\' callbacks when loading finishes.')
-      it('Should execute the `load:success\' callbacks when we fully receive the request.')
+      it('Should execute the `load:start\' callbacks when loading starts.', function(next) {
+        ok = 1
+        var p = http.get('/no-op')
+                    .on('load:start', success)
+                    .on('done',       http_done(next))
+        p.client.addEventListener('loadstart', function(){ expect(ok).to.be(true) })
+      })
+      it('Should execute the `load:progress\' callbacks anytime we receive new chunks.', function(next) {
+        this.timeout(4000)
+        var n = 0
+        http.get('/chunked')
+            .on('load:progress', function(){ ++n })
+            .on('done', function(data){ expect(data.replace(/\s/g, '')).to.be('abcd')
+                                        expect(n).to.be(4)
+                                        next() })
+      })
+      it('Should execute the `load:end\' callbacks when loading finishes.', function(next) {
+        ok = 1
+        var p = http.get('/no-op')
+                    .on('load:end', success)
+        p.client.addEventListener('loadend', function(){ expect(ok).to.be(true)
+                                                         next() })
+      })
+      it('Should execute the `load:success\' callbacks when we fully receive the request.', function(next) {
+        ok = 1
+        var p = http.get('/no-op')
+                    .on('load:success', success)
+        p.client.addEventListener('load', function(){ expect(ok).to.be(true)
+                                                      next() })
+      })
     })
   })
 })

@@ -31,5 +31,21 @@ app.get('/response', function(req, res) {
   res.send('response.', 200)
 })
 
+app.get('/looong', function(req, res) {
+  setTimeout( function() { res.send(200) }
+            , 1000 )
+})
+
+app.get('/cross-redirect', function(req, res) {
+  res.redirect('http://localhost:8081')
+})
+
+app.get('/chunked', function(req, res) {
+  res.write('a\r\n')
+  setTimeout(function(){ res.write('b\r\n') }, 400)
+  setTimeout(function(){ res.write('c\r\n') }, 800)
+  setTimeout(function(){ res.end('d\r\n')   }, 1000)
+})
+
 app.listen(8080)
 console.log('>> Test server listening on port 8080')
