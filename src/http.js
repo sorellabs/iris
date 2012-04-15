@@ -178,12 +178,12 @@ function request(uri, options) {
     client.onreadystatechange = function(  ){
                                   var response, status, state
                                   response = client.responseText
-                                  status   = client.status
                                   state    = client.readyState
 
                                   promise.fire('state:' + state_map[state], response, status)
 
                                   if (state == 4) {
+                                    status   = client.status
                                     active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
