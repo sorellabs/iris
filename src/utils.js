@@ -37,9 +37,10 @@ function serialise(data) {
 
 
 function build_query_string(uri, parameters) {
-  uri += /\?/.test(uri)?  '&' : '?'
-
-  return uri + serialise(parameters || {}) }
+  var query = serialise(parameters || {})
+  var sep   = /\?/.test(uri)?  '&' : '?'
+  return query?           uri + sep + query
+  :      /* otherwise */  uri }
 
 
 //// -- Exports ---------------------------------------------------------------
