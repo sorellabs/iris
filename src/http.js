@@ -189,6 +189,7 @@ function request(uri, options) {
     client.onerror            = function(ev){ promise.flush('errored')
                                                      .fail('errored', ev)       }
     client.onabort            = function(ev){ promise.flush('aborted')
+                                                     .flush('forgotten')
                                                      .fail('aborted', ev)       }
     client.ontimeout          = function(ev){ promise.flush('timeouted')
                                                      .fail('timeouted', ev)     }
