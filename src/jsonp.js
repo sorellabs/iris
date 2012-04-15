@@ -83,7 +83,7 @@ function request(uri, options) {
   script.src = build_query_string(uri, options.query)
   script.async = true
 
-  head.appendChild(script)
+  setTimeout(function() {  head.appendChild(script) })
 
   return promise
 
@@ -91,8 +91,7 @@ function request(uri, options) {
     active.splice(active.indexOf(promise), 1)
     id_poll.push(callback.slice(1))
     __iris_callbacks__[callback] = noop
-    script.parentNode.removeChild(script) }
-}
+    script.parentNode.removeChild(script) }}
 
 
 //// -- Exports ---------------------------------------------------------------
