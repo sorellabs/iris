@@ -15,5 +15,6 @@
   "dependencies"    : { "boo": "~1.2.0" 
                       , "cassie": "~1.0.0" },
   "devDependencies" : { "browserify" : "~1.10.7",
+                        "express"    : "~2.5.9",
                         "mocha"      : "~1.0.1",
                         "expect.js"  : "~0.1.2" }}
