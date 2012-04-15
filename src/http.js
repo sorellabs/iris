@@ -113,9 +113,9 @@ var PromiseP = Promise.derive({
          : /* otherwise */     function _timeout(delay) {
                                  this.clear_timer()
                                  this.timer = setTimeout( function() {
-                                                            this.client.abort()
                                                             this.flush('timeouted')
-                                                                .fail('timeouted') }.bind(this)
+                                                                .fail('timeouted')
+                                                            this.client.abort() }.bind(this)
                                                         , delay * 1000 )
                                  return this }
 
