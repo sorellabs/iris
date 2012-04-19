@@ -63,32 +63,32 @@ Installing
    beautiful thingies, you can just run the following in your project's
    directory.
 
-    $ npm install iris
+       $ npm install iris
 
 
 
 
 2. Then require `iris` in your script:
 
-    var iris = require('iris')
-    
-    iris.http.get('/za/warudo')
+       var iris = require('iris')
+        
+       iris.http.get('/za/warudo')
 
 
 3. Then compile it (use `--watch` for added development-phase awesomeness):
 
-    $ browserify your-script.js -o bundle.js
+       $ browserify your-script.js -o bundle.js
     
     
 4. Finally, just put it all in your page:
 
-    <html>
-      {{ ... }}
-      <body>
-        {{ lots of things may go here, too }}
-        <script src="/path/to/bundle.js"></script>
-      </body>
-    </html>
+       <html>
+         {{ ... }}
+         <body>
+           {{ lots of things may go here, too }}
+           <script src="/path/to/bundle.js"></script>
+         </body>
+       </html>
      
 
 [node.js]: http://nodejs.org/
