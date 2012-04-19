@@ -5,38 +5,38 @@ Iris is a library for handling HTTP (through XMLHttpRequest) and JSONP requests
 in a more high-level way. It uses promises to allow for more declarative and
 flexible handling of the responses from either side.
 
+```javascript
+// HTTP example
+var http = require('iris').http
 
-    // HTTP example
-    var http = require('iris').http
+http.get('/user/profile')
+    .timeout(10) // in seconds
+    .ok(function(data){
+       $('#user').html(data)
+    })
+    .timeouted(function(){
+       dialog.error('The operation timed out.')
+    })
+    .failed(function() {
+       dialog.error('Ooops, something went wrong.')
+    })
+    
 
-    http.get('/user/profile')
-        .timeout(10) // in seconds
-        .ok(function(data){
-           $('#user').html(data)
-        })
-        .timeouted(function(){
-           dialog.error('The operation timed out.')
-        })
-        .failed(function() {
-           dialog.error('Ooops, something went wrong.')
-        })
-        
+// JSONP example
+var jsonp = require('iris').jsonp
 
-    // JSONP example
-    var jsonp = require('iris').jsonp
-
-    jsonp.get('/user/posts')
-         .timeout(10)
-         .ok(function(data) {
-            $('#post-count').text(data.posts.length + ' posts.')
-         })
-         .timeouted(function() {
-            dialog.error('The operation timed out.')
-         })
-         .failed(function() {
-            dialog.error('Ooops, something went wrong.')
-         })
-
+jsonp.get('/user/posts')
+     .timeout(10)
+     .ok(function(data) {
+        $('#post-count').text(data.posts.length + ' posts.')
+     })
+     .timeouted(function() {
+        dialog.error('The operation timed out.')
+     })
+     .failed(function() {
+        dialog.error('Ooops, something went wrong.')
+     })
+```
 
 Requirements and Supported Platforms
 ------------------------------------
