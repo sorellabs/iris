@@ -63,33 +63,37 @@ Installing
    beautiful thingies, you can just run the following in your project's
    directory.
 
-       $ npm install iris
-
+   ```bash
+   $ npm install iris
+   ```
 
 
 
 2. Then require `iris` in your script:
 
-       var iris = require('iris')
-        
-       iris.http.get('/za/warudo')
-
+   ```javascript
+   var iris = require('iris')
+    
+   iris.http.get('/za/warudo')
+   ```
 
 3. Then compile it (use `--watch` for added development-phase awesomeness):
 
-       $ browserify your-script.js -o bundle.js
-    
+   ```bash
+   $ browserify your-script.js -o bundle.js
+   ```
     
 4. Finally, just put it all in your page:
 
-       <html>
-         {{ ... }}
-         <body>
-           {{ lots of things may go here, too }}
-           <script src="/path/to/bundle.js"></script>
-         </body>
-       </html>
-     
+   ```html
+   <html>
+     {{ ... }}
+     <body>
+       {{ lots of things may go here, too }}
+       <script src="/path/to/bundle.js"></script>
+     </body>
+   </html>
+   ```
 
 [node.js]: http://nodejs.org/
 [npm]: http://npmjs.org/
@@ -99,9 +103,12 @@ Downloading
 -----------
 
 Iris is nicely hosted (and developed) on [Github][]. You can
-[download the lastest snapshot][] or clone the entire repository:
+[download the lastest snapshot][snapshot] or clone the entire
+repository:
 
-    $ git clone git://github.com/killdream/iris.git
+```bash
+$ git clone git://github.com/killdream/iris.git
+```
 
 [Github]:   https://github.com/killdream/iris
 [snapshot]: https://github.com/killdream/iris/zipball/master
@@ -129,6 +136,8 @@ Iris is licensed under the delicious and permissive [MIT][]
 licence. You can happily copy, share, modify, sell or whatever — refer
 to the actual licence text for `less` information:
 
-    $ less LICENCE.txt
+```bash
+$ less LICENCE.txt
+```
     
 [MIT]: https://github.com/killdream/iris/raw/master/LICENCE.txt
