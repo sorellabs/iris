@@ -82,6 +82,14 @@ function serialise_for_type(mime, data) {
   :      /* otherwise */              serialise(data) }
 
 
+///// Function normalise_status
+// Normalises HTTP response statuses for IE.
+//
+// normalise-status :: Number -> Number
+function normalise_status(status) {
+  return status == 1223?   204
+  :      /* otherwise */   status }
+
 
 // Whether the engine supports XHR2's `timeout' attribute
 //
@@ -321,7 +329,7 @@ function request(uri, options) {
 
                                   if (state == 4) {
                                     response = client.responseText
-                                    status = client.status
+                                    status = normalise_status(client.status)
                                     active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
