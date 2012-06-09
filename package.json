@@ -1,20 +1,33 @@
-{ "author"      : "Quildreen Motta <quildreen@gmail.com> (http://killdream.github.com/)",
-  "name"        : "iris",
-  "description" : "Sweet Promise-based XHR/JSONP library for browsers.",
-  "version"     : "0.0.1",
-
-  "repository"  : { "type": "git",
-                    "url" : "git://github.com/killdream/iris.git" },
-
-  "main"        : "./src/index.js",
-  "keywords"    : [ "xhr", "jsonp", "request", "ajax", "browser" ],
-  "scripts"     : { "test": "mocha" },
-  "engines"     : { },
-  "licence"     : "MIT/X11",
-
-  "dependencies"    : { "boo": "~1.2.0" 
-                      , "cassie": "~1.0.0" },
-  "devDependencies" : { "browserify" : "~1.10.7",
-                        "express"    : "~2.5.9",
-                        "mocha"      : "~1.0.1",
-                        "expect.js"  : "~0.1.2" }}
+{
+  "author": "Quildreen Motta <quildreen@gmail.com> (http://killdream.github.com/)",
+  "name": "iris",
+  "description": "Sweet Promise-based XHR/JSONP library for browsers.",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/killdream/iris.git"
+  },
+  "main": "./src/index.js",
+  "keywords": [
+    "xhr",
+    "jsonp",
+    "request",
+    "ajax",
+    "browser"
+  ],
+  "scripts": {
+    "test": "mocha"
+  },
+  "engines": {},
+  "licence": "MIT/X11",
+  "dependencies": {
+    "boo": "~1.2.0",
+    "cassie": "~1.2.0"
+  },
+  "devDependencies": {
+    "browserify": "~1.10.7",
+    "express": "~2.5.9",
+    "mocha": "~1.0.1",
+    "expect.js": "~0.1.2"
+  }
+}

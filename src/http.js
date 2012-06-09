@@ -187,7 +187,7 @@ var PromiseP = Promise.derive({
 , forget:
   function _forget() {
     this.client.abort()
-    return this.flush('forgotten').fail('forgotten') }
+    return this.flush('forgotten', 'failed').fail('forgotten') }
 
 
   ////// Function timeout
@@ -203,7 +203,7 @@ var PromiseP = Promise.derive({
          : /* otherwise */     function _timeout(delay) {
                                  this.clear_timer()
                                  this.timer = setTimeout( function() {
-                                                            this.flush('timeouted')
+                                                            this.flush('timeouted', 'failed')
                                                                 .fail('timeouted')
                                                             this.forget() }.bind(this)
                                                         , delay * 1000 )
@@ -304,7 +304,7 @@ function request(uri, options) {
   // Generates a handler for the given type of error
   // make-error-handler :: String -> Event -> Undefined
   function make_error_handler(type) { return function(ev) {
-    promise.flush(type).fail(type, ev) }}
+    promise.flush(type, 'failed').fail(type, ev) }}
 
   // Invokes an error handler for the given type
   // raise :: String -> Undefined
@@ -328,8 +328,12 @@ function request(uri, options) {
                                   promise.fire('state:' + state_map[state])
 
                                   if (state == 4) {
+                                    var binding_state = success.test(status)? 'ok'
+                                                      : error.test(status)?   'failed'
+                                                      : /* otherwise */       'any'
+
                                     response = client.responseText
-                                    status = normalise_status(client.status)
+                                    status   = normalise_status(client.status)
                                     active.splice(active.indexOf(promise), 1)
                                     promise.flush('status:' + status)
                                            .flush('status:' + status_type(status))
