@@ -247,7 +247,7 @@ describe('{} http', function() {
         var n = 0
         http.get('/response')
             .forgotten(function(){ ++n })
-            .then(function(){ ++n })
+            .forgotten(function(){ ++n })
             .on('done', function() { expect(n).to.be(2)
                                      next() })
             .forget()
@@ -262,7 +262,7 @@ describe('{} http', function() {
         var n = 0
         http.get('/looong')
             .timeouted(function() { ++n })
-            .then(function() { ++n })
+            .timeouted(function() { ++n })
             .on('done', function() { expect(n).to.be(2)
                                      next() })
             .timeout(0.1)
@@ -278,7 +278,7 @@ describe('{} http', function() {
         var n = 0
         var p = http.get('/cross-redirect')
                     .errored(function(){ ++n })
-                    .then(function(){ ++n })
+                    .errored(function(){ ++n })
                     .on('load:end', function(){ expect(p.value).to.contain('errored')
                                                 expect(n).to.be(2)
                                                 next() })
