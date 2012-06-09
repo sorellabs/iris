@@ -2,7 +2,7 @@ var expect = require('expect.js')
 
 describe('{} iris', function() {
 describe('{} http', function() {
-  var http  = require('iris').http
+  var http  = require('iris/src').http
   var proto = Object.getPrototypeOf
   var ok    = false
 
@@ -32,6 +32,9 @@ describe('{} http', function() {
     return xs.map(function(x){ return [pre, x] })}
 
 
+  function zip(a, b) {
+    return b.map(function(x, i){ return [x, b[i]] })}
+
   function range(start, end) {
     var xs = []
     --start
@@ -57,7 +60,7 @@ describe('{} http', function() {
     var type   = item[0]
     var status = item[1]
     var event  = item[idx]
-    var p = http.get('/status/' + status)
+    var p = http.head('/status/' + status)
     p.on('status:' + event, success)
      .on('done',            http_done(p, step)) }}
 
@@ -146,8 +149,8 @@ describe('{} http', function() {
               , check_status(0)
               , next )
         })
-        it('- Redirected 3xx', function(next) {
-          each( zipRange('redirected', 300, 307)
+        it('- Type: Redirected 3xx', function(next) {
+          each( zip('redirected', [300, 304, 305, 306])
               , check_status(0)
               , next )
         })
@@ -169,7 +172,7 @@ describe('{} http', function() {
               , next )
         })
         it('- Redirected 3xx', function(next) {
-          each( zipRange('redirected', 300, 307)
+          each( zip('redirected', [300, 304, 305, 306])
               , check_status(1)
               , next )
         })
@@ -201,7 +204,7 @@ describe('{} http', function() {
             , next)
       })
       it('Shouldn\'t execute success or failure callbacks in case of 1xx or 3xx.', function(next) {
-        each( range(300, 307)
+        each( [300, 304, 305, 306]
             , function(status, step) {
                 ok = true
                 var p = http.get('/status/' + status)

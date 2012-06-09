@@ -1,4 +1,5 @@
 var express = require('express')
+var browserify = require('browserify')
 var app = express.createServer()
 
 
@@ -11,6 +12,15 @@ app.use(function(req, res, next) { res.header('Expires', 'Sun, 08 Apr 2012 06:00
                                                                , 'max-age=0' ])
                                    res.header('Pragma', 'no-cache')
                                    next() })
+
+app.get('/suite.js', function(req, res) {
+  var source = browserify({ debug: true })
+                 .require('iris')
+                 .addEntry(__dirname + '/suite.js')
+                 .bundle()
+  res.send(source, { 'Content-Type': 'text/javascript' }) })
+
+
 app.set('jsonp callback', 'callback')
 
 app.get('/no-op', function(req, res) {
@@ -32,8 +42,6 @@ app.get('/headers', function(req, res) {
 })
 
 app.get('/status/:id', function(req, res) {
-  if (req.params.id == 303)
-    res.header('Location', '/status/302')
   res.send('', {}, +req.params.id)
 })
 

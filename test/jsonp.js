@@ -2,7 +2,7 @@ var expect = require('expect.js')
 
 describe('{} iris', function() {
 describe('{} jsonp', function() {
-  var jsonp    = require('iris').jsonp
+  var jsonp    = require('iris/src').jsonp
   var proto    = Object.getPrototypeOf
   var ok       = false
 

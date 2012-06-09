@@ -1,0 +1,14 @@
+HTTP/1.1 300 Multiple Choices
+X-Powered-By: Express
+Expires: Sun, 08 Apr 2012 06:00:00 GMT
+Cache-Control: no-store
+Cache-Control: no-cache
+Cache-Control: must-revalidate
+Cache-Control: max-age=0
+Pragma: no-cache
+Location: /no-op
+Date: Sun Apr 22 2012 23:41:56 GMT-0300 (BRT)
+Content-Type: text/html; charset=utf-8
+Content-Length: 6
+Connection: keep-alive
+
