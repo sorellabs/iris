@@ -46,4 +46,5 @@ function build_query_string(uri, parameters) {
 //// -- Exports ---------------------------------------------------------------
 module.exports = { serialise:          serialise
                  , build_query_string: build_query_string
+                 , buildQueryString:   build_query_string
                  }

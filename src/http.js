@@ -201,7 +201,7 @@ var PromiseP = Promise.derive({
                                  return this }
 
          : /* otherwise */     function _timeout(delay) {
-                                 this.clear_timer()
+                                 this.clearTimer()
                                  this.timer = setTimeout( function() {
                                                             this.flush('timeouted', 'failed')
                                                                 .fail('timeouted')
@@ -215,32 +215,32 @@ var PromiseP = Promise.derive({
   // invoking `timeout'.
   //
   // clear-timer :: @this:Promise* -> this
-, clear_timer: support_timeout_p?  function _clear_timer() {
+, clearTimer: support_timeout_p?  function _clear_timer() {
                                      this.timeout = 0
                                      return this }
 
-             : /* otherwise */     Promise.clear_timer
+             : /* otherwise */     Promise.clearTimer
 
 
 // Generalised HTTP statuses
-, information  : register('status:information')
-, success      : register('status:success')
-, redirected   : register('status:redirected')
-, client_error : register('status:client-error')
-, server_error : register('status:server-error')
+, information : register('status:information')
+, success     : register('status:success')
+, redirected  : register('status:redirected')
+, clientError : register('status:client-error')
+, serverError : register('status:server-error')
 
 
 // Ready states
-, unsent           : register('state:unsent')
-, opened           : register('state:opened')
-, headers_received : register('state:headers-received')
-, loading          : register('state:loading')
-, completed        : register('state:completed')
+, unsent          : register('state:unsent')
+, opened          : register('state:opened')
+, headersReceived : register('state:headers-received')
+, loading         : register('state:loading')
+, completed       : register('state:completed')
 
 // General failure statuses
 , errored : register('errored')
 })
-
+PromiseP.clear_timer = PromiseP.clearTimer
 
 ///// Function request
 // Makes an HTTP request to the given URI, and returns a `PromiseP' that
