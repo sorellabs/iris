@@ -30,10 +30,11 @@ var encode = encodeURIComponent
 
 //// --- Utilities ------------------------------------------------------------
 function serialise(data) {
-  return keys(data || {}).map(encode_pair).join('&')
+  return keys(data || {}).map(encode_pair).filter(Boolean).join('&')
 
   function encode_pair(key) {
-    return encode(key) + '=' + encode(data[key]) }}
+    return data[key] != null?  encode(key) + '=' + encode(data[key])
+    :      /* otherwise */     null }}
 
 
 function build_query_string(uri, parameters) {
